@@ -202,18 +202,19 @@ function lower_upper_decomposition(
 
     lower_matrix::Array{Float64,2} = build_identity_matrix(size_of_matrix)
     upper_matrix::Array{Float64,2} = zeros(size_of_matrix, size_of_matrix)
+    permutation_matrix::Array{Float64,2} = build_identity_matrix(size_of_matrix)
 
     for row_index in 1:size_of_matrix - 1
         if pivoting
             max_row_index = reduce(
-                (max_row_index, row_index) -> abs(coefficient_matrix[row_index, first_non_zero_index]) > abs(coefficient_matrix[max_row_index, first_non_zero_index])
+                (max_row_index, row_index) -> abs(coefficient_matrix[row_index, row_index]) > abs(coefficient_matrix[max_row_index, row_index])
                     ? row_index
                     : max_row_index,
                 row_index:size_of_matrix,
                 init=row_index
             )
-            permutation_matrix = build_permutation_matrix(max_row_index, row_index, size_of_matrix)
-            coefficient_matrix = permutation_matrix * coefficient_matrix
+            permutation_matrix = permutation_matrix * build_permutation_matrix(max_row_index, row_index, size_of_matrix)
+            coefficient_matrix[max_row_index, :], coefficient_matrix[row_index, :] = coefficient_matrix[row_index, :], coefficient_matrix[max_row_index, :]
         end
         multiplier_matrix = build_multiplier_matrix(coefficient_matrix, row_index)
         coefficient_matrix = multiplier_matrix * coefficient_matrix
@@ -238,10 +239,8 @@ function lower_upper_decomposition(
         end
     end
 
-    println("lower_matrix: $lower_matrix, upper_matrix: $upper_matrix, coefficient_matrix: $coefficient_matrix")
-
     # Lower matrix is the inverse of the product of the multiplier matrixes
-    return inv(lower_matrix), upper_matrix
+    return inv(lower_matrix), upper_matrix, permutation_matrix
 end
 
 function lower_upper_decomposition_solver(
@@ -249,7 +248,10 @@ function lower_upper_decomposition_solver(
     constant_vector::Array{Float64,1},
     pivoting::Bool = false
 )
-    lower_matrix, upper_matrix = lower_upper_decomposition(coefficient_matrix, pivoting)
+    lower_matrix, upper_matrix, permutation_matrix = lower_upper_decomposition(coefficient_matrix, pivoting)
+    if pivoting
+        constant_vector = permutation_matrix * constant_vector
+    end
     partial_solution::Array{Float64,1} = sub_direta(lower_matrix, constant_vector)
     return sub_inversa(upper_matrix, partial_solution)
 end
