@@ -104,6 +104,19 @@ function get_multiplier(
     return multiplier
 end
 
+function get_multiplier(
+    pivot_row::Array{Float64,1}, 
+    row_to_reduce::Array{Float64,1},
+    pivot_row_index::Int
+)
+    tol = 1e-12
+    if pivot_row[pivot_row_index] === 0.0
+        error("Pivot row is zero")
+    end
+    multiplier = row_to_reduce[pivot_row_index] / pivot_row[pivot_row_index]
+    return multiplier
+end
+
 function reduce_row(
     pivot_row::Array{Float64,1},
     row_to_reduce::Array{Float64,1}
@@ -168,43 +181,75 @@ function build_multiplier_matrix(coefficient_matrix::Array{Float64,2}, pivot_row
     size_of_matrix = size(coefficient_matrix, 1)
     rows_to_reduce = pivot_row_index+1:size_of_matrix
     multipliers_vector = map(
-        x -> - get_multiplier(coefficient_matrix[pivot_row_index,:], coefficient_matrix[x,:]),
+        x -> - get_multiplier(coefficient_matrix[pivot_row_index,:], coefficient_matrix[x,:], pivot_row_index),
         rows_to_reduce
         )
     multiplier_matrix = build_multiplier_matrix(multipliers_vector, size_of_matrix)
     return multiplier_matrix
 end
 
-function find_multiplier_matrixes(coefficient_matrix::Array{Float64,2})
-    tol = 1e-12
+function build_permutation_matrix(max_row_index::Int, row_index::Int, size_of_matrix::Int)
+    permutation_matrix = build_identity_matrix(size_of_matrix)
+    permutation_matrix[row_index, :], permutation_matrix[max_row_index, :] = permutation_matrix[max_row_index, :], permutation_matrix[row_index, :]
+    return permutation_matrix
+end
+
+function lower_upper_decomposition(
+    coefficient_matrix::Array{Float64,2},
+    pivoting::Bool = false
+)
     size_of_matrix = size(coefficient_matrix, 1)
 
     lower_matrix::Array{Float64,2} = build_identity_matrix(size_of_matrix)
     upper_matrix::Array{Float64,2} = zeros(size_of_matrix, size_of_matrix)
 
     for row_index in 1:size_of_matrix - 1
-        first_non_zero_index = findfirst(x -> abs(x) > tol, coefficient_matrix[row_index,:])
-        if first_non_zero_index === nothing || first_non_zero_index !== row_index
-            error("Pivot row is zero")
+        if pivoting
+            max_row_index = reduce(
+                (max_row_index, row_index) -> abs(coefficient_matrix[row_index, first_non_zero_index]) > abs(coefficient_matrix[max_row_index, first_non_zero_index])
+                    ? row_index
+                    : max_row_index,
+                row_index:size_of_matrix,
+                init=row_index
+            )
+            permutation_matrix = build_permutation_matrix(max_row_index, row_index, size_of_matrix)
+            coefficient_matrix = permutation_matrix * coefficient_matrix
         end
-        if first_non_zero_index === row_index
-            multiplier_matrix = build_multiplier_matrix(coefficient_matrix, row_index)
-            coefficient_matrix = multiplier_matrix * coefficient_matrix
-            lower_matrix = multiplier_matrix * lower_matrix
+        multiplier_matrix = build_multiplier_matrix(coefficient_matrix, row_index)
+        coefficient_matrix = multiplier_matrix * coefficient_matrix
+        coefficient_matrix[row_index+1:end, row_index] = multiplier_matrix[row_index+1:end, row_index]
+    end
+
+    # Get lower triangular part from coefficient_matrix
+    for i in 1:size_of_matrix
+        for j in 1:size_of_matrix
+            if i > j
+                lower_matrix[i,j] = coefficient_matrix[i,j]
+            end
         end
     end
 
-    upper_matrix = coefficient_matrix
+    # Get upper triangular part from coefficient_matrix
+    for i in 1:size_of_matrix
+        for j in 1:size_of_matrix
+            if i <= j
+                upper_matrix[i,j] = coefficient_matrix[i,j]
+            end
+        end
+    end
 
-    println("lower_matrix: $(inv(lower_matrix))\n")
-    println("upper_matrix: $upper_matrix\n")
-    println("coefficient_matrix: $(inv(lower_matrix) * upper_matrix)\n")
+    println("lower_matrix: $lower_matrix, upper_matrix: $upper_matrix, coefficient_matrix: $coefficient_matrix")
 
+    # Lower matrix is the inverse of the product of the multiplier matrixes
     return inv(lower_matrix), upper_matrix
 end
 
-function lower_upper_decomposition(coefficient_matrix::Array{Float64,2}, constant_vector::Array{Float64,1})
-    lower_matrix, upper_matrix = find_multiplier_matrixes(coefficient_matrix)
+function lower_upper_decomposition_solver(
+    coefficient_matrix::Array{Float64,2},
+    constant_vector::Array{Float64,1},
+    pivoting::Bool = false
+)
+    lower_matrix, upper_matrix = lower_upper_decomposition(coefficient_matrix, pivoting)
     partial_solution::Array{Float64,1} = sub_direta(lower_matrix, constant_vector)
     return sub_inversa(upper_matrix, partial_solution)
 end
@@ -234,6 +279,7 @@ function solve_linear_system(A::Array{Int,2}, b::Array{Int,1})
     println("b: Algoritmo de Substituição Inversa.") 
     println("c: Eliminação Gaussiana.")
     println("d: Decomposição LU sem pivoteamento.")
+    println("e: Decomposição LU com pivoteamento.")
 
     metodo = readline()
 
@@ -257,7 +303,12 @@ function solve_linear_system(A::Array{Int,2}, b::Array{Int,1})
         return x
     elseif metodo == "d"
         println("Método de Decomposição LU sem pivoteamento selecionado.")
-        x = lower_upper_decomposition(A_float, b_float)
+        x = lower_upper_decomposition_solver(A_float, b_float)
+        println("Solução: $x")
+        return x
+    elseif metodo == "e"
+        println("Método de Decomposição LU com pivoteamento selecionado.")
+        x = lower_upper_decomposition_solver(A_float, b_float, true)
         println("Solução: $x")
         return x
     else
