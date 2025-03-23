@@ -205,6 +205,8 @@ function lower_upper_decomposition(
     permutation_matrix::Array{Float64,2} = build_identity_matrix(size_of_matrix)
 
     for row_index in 1:size_of_matrix - 1
+        # por algum motivo estranho que não entendi, a solução com pivoteamento gera erro numérico
+        # para o sistema usado como exemplo :/
         if pivoting
             max_row_index = reduce(
                 (max_row_index, row_index) -> abs(coefficient_matrix[row_index, row_index]) > abs(coefficient_matrix[max_row_index, row_index])
@@ -222,22 +224,8 @@ function lower_upper_decomposition(
     end
 
     # Get lower triangular part from coefficient_matrix
-    for i in 1:size_of_matrix
-        for j in 1:size_of_matrix
-            if i > j
-                lower_matrix[i,j] = coefficient_matrix[i,j]
-            end
-        end
-    end
-
-    # Get upper triangular part from coefficient_matrix
-    for i in 1:size_of_matrix
-        for j in 1:size_of_matrix
-            if i <= j
-                upper_matrix[i,j] = coefficient_matrix[i,j]
-            end
-        end
-    end
+    lower_matrix = [i == j ? 1.0 : (i > j ? coefficient_matrix[i,j] : 0.0) for i in 1:size_of_matrix, j in 1:size_of_matrix]
+    upper_matrix = [i <= j ? coefficient_matrix[i,j] : 0.0 for i in 1:size_of_matrix, j in 1:size_of_matrix]
 
     # Lower matrix is the inverse of the product of the multiplier matrixes
     return inv(lower_matrix), upper_matrix, permutation_matrix
