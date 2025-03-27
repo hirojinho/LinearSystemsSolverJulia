@@ -263,7 +263,7 @@ end
 # b = [1, 2, 3]
 # A = [1 4 3; 0 1 2; 0 0 1]
 # b = [3, 2, 1]
-function solve_linear_system(A::Array{Int,2}, b::Array{Int,1})
+function solve_linear_system(A::Array{Float64,2}, b::Array{Float64,1})
     println("Escolha o método:")
     println("a: Algoritmo de Substituição Direta.")
     println("b: Algoritmo de Substituição Inversa.") 
@@ -308,7 +308,7 @@ function solve_linear_system(A::Array{Int,2}, b::Array{Int,1})
 end
 
 # Example usage
-A = [2 1 -1; -3 -1 2; -2 1 2]
-b = [8, -11, -3]
+A = [2.0 1.0 -1.0; -3.0 -1.0 2.0; -2.0 1.0 2.0]
+b = [8.0, -11.0, -3.0]
 solve_linear_system(A, b)
 
