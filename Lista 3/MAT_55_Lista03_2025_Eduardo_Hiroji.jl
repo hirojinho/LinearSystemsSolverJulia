@@ -271,10 +271,8 @@ function cholesky_decomposition(coefficient_matrix::Array{Float64,2})
     end
 
     # TODO: em vez de copiar, criar um util que resolve a matriz triangular inferior
-    for i in 1:n
-        for j in 1:i
-            lower_matrix[i,j] = coefficient_matrix[i,j]
-        end
+    for i in 1:n, j in 1:i
+        lower_matrix[i,j] = coefficient_matrix[i,j]
     end
 
     return lower_matrix
