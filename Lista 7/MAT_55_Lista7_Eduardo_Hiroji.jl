@@ -1,3 +1,5 @@
+using Printf
+
 # =====================================================================
 # *********************************************************************
 #                    MAT-55 2024 - Lista 7
@@ -17,7 +19,12 @@
 #
 # Saída:
 # x     aproximação para a solução do sistema Ax=b
-function jacobi(coefficients::Array{Float64,2}, rhs::Array{Float64,1}, initial_guess_original::Array{Float64,1}, tolerance::Float64, max_iterations::Int64)::Array{Float64,1}
+function jacobi(
+    coefficients::Array{Float64,2},
+    rhs::Array{Float64,1},
+    initial_guess_original::Array{Float64,1},
+    tolerance::Float64,
+    max_iterations::Int64)::Tuple{Int64, Array{Float64,1}}
 ##################
 #Digite seu código aqui
     num_rows = size(coefficients, 1)
@@ -35,8 +42,8 @@ function jacobi(coefficients::Array{Float64,2}, rhs::Array{Float64,1}, initial_g
             next_guess[row_index] = (rhs[row_index] - accumulated_sum) / coefficients[row_index, row_index]
         end
         if stop_criterion(initial_guess, next_guess, tolerance)
-            println("Jacobi method converged in $iteration iterations")
-            return next_guess
+            println("Jacobi method converged in $iteration iterations for m = $(Int64(sqrt(num_rows) + 1))")
+            return iteration, next_guess
         elseif iteration == max_iterations
             throw(ArgumentError("Maximum number of iterations reached."))
         end
@@ -57,7 +64,12 @@ end
 # Saída:
 # x     aproximação para a solução do sistema Ax=b
 
-function gauss_seidel(coefficients::Array{Float64,2}, rhs::Array{Float64,1}, initial_guess_original::Array{Float64,1}, tolerance::Float64, max_iterations::Int64)
+function gauss_seidel(
+    coefficients::Array{Float64,2},
+    rhs::Array{Float64,1},
+    initial_guess_original::Array{Float64,1},
+    tolerance::Float64,
+    max_iterations::Int64)::Tuple{Int64, Array{Float64,1}}
 ##################
 #Digite seu código aqui
     num_rows = size(coefficients, 1)
@@ -76,8 +88,8 @@ function gauss_seidel(coefficients::Array{Float64,2}, rhs::Array{Float64,1}, ini
             next_guess[row_index] = (rhs[row_index] - accumulated_sum) / coefficients[row_index, row_index]
         end
         if stop_criterion(initial_guess, next_guess, tolerance)
-            println("Gauss-Seidel method converged in $iteration iterations")
-            return next_guess
+            println("Gauss-Seidel method converged in $iteration iterations for m = $(Int64(sqrt(num_rows) + 1))")
+            return iteration, next_guess
         elseif iteration == max_iterations
             throw(ArgumentError("Maximum number of iterations reached."))
         end
@@ -99,7 +111,13 @@ end
 # Saída:
 # x     aproximação para a solução do sistema Ax=b
 
-function sor(coefficients::Array{Float64,2}, rhs::Array{Float64,1}, initial_guess_original::Array{Float64,1}, omega::Float64, tolerance::Float64, max_iterations::Int64)::Array{Float64,1}
+function sor(
+    coefficients::Array{Float64,2},
+    rhs::Array{Float64,1},
+    initial_guess_original::Array{Float64,1},
+    omega::Float64,
+    tolerance::Float64,
+    max_iterations::Int64)::Tuple{Int64, Array{Float64,1}}
 ##################
 #Digite seu código aqui
     num_rows = size(coefficients, 1)
@@ -119,8 +137,8 @@ function sor(coefficients::Array{Float64,2}, rhs::Array{Float64,1}, initial_gues
                 omega*(rhs[row_index] - accumulated_sum) / coefficients[row_index, row_index]
         end
         if stop_criterion(initial_guess, next_guess, tolerance)
-            println("SOR method converged in $iteration iterations")
-            return next_guess
+            println("SOR method converged in $iteration iterations for m = $(Int64(sqrt(num_rows) + 1)) and omega = $omega")
+            return iteration, next_guess
         elseif iteration == max_iterations
             throw(ArgumentError("Maximum number of iterations reached."))
         end
@@ -195,29 +213,51 @@ function build_solution_vector(m::Int64, h::Float64)::Vector{Float64}
 end
 
 function main()
-    m = 4
-    h = 0.1
+    h = [0.1, 0.05, 0.025]
     tolerance = 1e-8
-    max_iterations = 1000
-    n = (m - 1)^2
-    omega = 1.1
+    max_iterations = Int64(1e8)
+    omega = collect(1:0.1:1.9)
 
-    block_matrix::Matrix{Float64} = build_block_matrix(m)
-    rhs::Vector{Float64} = build_solution_vector(m, h)
-    initial_guess = zeros(n)
+    results = []
 
-    jacobi_solution = jacobi(block_matrix, rhs, initial_guess, tolerance, max_iterations)
-    gauss_seidel_solution = gauss_seidel(block_matrix, rhs, initial_guess, tolerance, max_iterations)
-    sor_solution = sor(block_matrix, rhs, initial_guess, omega, tolerance, max_iterations)
+    for h_i in h
+        m = Int64(1/h_i)
+        n = (m - 1)^2
+
+        block_matrix::Matrix{Float64} = build_block_matrix(m)
+        rhs::Vector{Float64} = build_solution_vector(m, h_i)
+        initial_guess = zeros(n)
+
+        jacobi_iters, _ = jacobi(block_matrix, rhs, initial_guess, tolerance, max_iterations)
+        push!(results, (method="Jacobi", m=m, omega=NaN, iterations=jacobi_iters))
+        gauss_seidel_iters, _ = gauss_seidel(block_matrix, rhs, initial_guess, tolerance, max_iterations)
+        push!(results, (method="Gauss-Seidel", m=m, omega=NaN, iterations=gauss_seidel_iters))
+
+        for omega_i in omega
+            sor_iters, _ = sor(block_matrix, rhs, initial_guess, omega_i, tolerance, max_iterations)
+            push!(results, (method="SOR", m=m, omega=omega_i, iterations=sor_iters))
+        end
+        println("\n")
+    end
+
+
+    # =====================================================================
+    # 		         Resultados obtidos
+    # =====================================================================
+    #Exiba os resultados obtidos em uma tabela. Você pode usar o comando @printf para imprimir os dados. No terminal julia, digite ? e na sequência @printf para obter ajuda sobre o comando.
+    @printf("%-15s %-8s %-8s %-12s\n", "Method", "m", "Omega", "Iterations")
+    @printf("%s\n", "-"^45)
+    for r in results
+        if isnan(r.omega)
+            @printf("%-15s %-8d %-8s %-12d\n", r.method, r.m, "-", r.iterations)
+        else
+            @printf("%-15s %-8d %-8.1f %-12d\n", r.method, r.m, r.omega, r.iterations)
+        end
+    end
+    @printf("%s\n", "-"^45)
 end
 
 main()
-# =====================================================================
-# 		         Resultados obtidos
-# =====================================================================
-#Exiba os resultados obtidos em uma tabela. Você pode usar o comando @printf para imprimir os dados. No terminal julia, digite ? e na sequência @printf para obter ajuda sobre o comando.
-
-using Printf
 
 # =====================================================================
 # 		           Comentários
