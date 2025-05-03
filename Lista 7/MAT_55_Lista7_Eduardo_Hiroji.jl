@@ -263,13 +263,36 @@ main()
 # 		           Comentários
 # =====================================================================
 # Digite aqui os seus comentários, e discuta sobre o desempenho dos métodos.
-
-
-
-
-
-
-
-
-
-
+# Os métodos iterativos Jacobi, Gauss-Seidel e SOR foram aplicados para resolver sistemas lineares provenientes da discretização de um problema,
+# variando o parâmetro  m (relacionado ao tamanho da malha) e, no caso do SOR, o parâmetro de relaxação ω.
+# =====================================================================
+# 1. Método de Jacobi:
+# 
+# O método de Jacobi apresentou o maior número de iterações para convergência em todos os casos analisados. Isso ocorre porque ele utiliza apenas
+# os valores da iteração anterior para atualizar todas as incógnitas, o que geralmente resulta em uma convergência mais lenta.
+# À medida que o valor de m aumenta (ou seja, o sistema fica maior), o número de iterações cresce significativamente,
+# evidenciando a limitação do método para sistemas de grande porte.
+# =====================================================================
+# 2. Método de Gauss-Seidel:
+# 
+# O método de Gauss-Seidel foi mais eficiente que o Jacobi, necessitando de menos iterações para atingir a convergência.
+# Isso se deve ao fato de que, a cada iteração, o método já utiliza os valores mais atualizados das incógnitas, acelerando o processo de convergência.
+# Ainda assim, o número de iterações cresce com o aumento de m, mas de forma menos acentuada em comparação ao Jacobi.
+# =====================================================================
+# 3. Método SOR (Successive Over-Relaxation):
+# 
+# O método SOR mostrou-se o mais eficiente entre os três, especialmente para valores ótimos do parâmetro de relaxação ω.
+# Observa-se que, para cada valor de m, existe um valor de ω que minimiza o número de iterações necessárias para a convergência.
+# Para valores de ω próximos de 1 (caso particular que recupera o Gauss-Seidel), o desempenho é igual ao do Gauss-Seidel.
+# À medida que ω aumenta, o número de iterações diminui até atingir um mínimo, e depois volta a aumentar se ω for elevado demais,
+# podendo até prejudicar a convergência. Para os casos analisados, valores de ω entre 1.6 e 1.9 proporcionaram uma redução significativa
+# no número de iterações, especialmente para sistemas maiores.
+# =====================================================================
+# Resumo geral:
+#
+# O Jacobi é o mais simples, mas o mais lento.
+# O Gauss-Seidel já apresenta uma melhora considerável.
+# O SOR, com escolha adequada de ω, é o mais eficiente, podendo reduzir drasticamente o número de iterações necessárias para convergência,
+# principalmente em sistemas de maior dimensão. Esses resultados ilustram a importância de escolher o método iterativo adequado e, no caso do SOR,
+# ajustar corretamente o parâmetro de relaxação para obter o melhor desempenho possível.
+# =====================================================================
