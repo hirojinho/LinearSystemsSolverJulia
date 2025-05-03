@@ -19,7 +19,7 @@ This project is part of an optional course in the Mechanical Engineering undergr
 To run the project:
 
 ```julia
-{{filename}}
+julia {{filename}}.jl
 ```
 
 ## Dependencies
