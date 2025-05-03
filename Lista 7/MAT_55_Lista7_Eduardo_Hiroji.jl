@@ -99,15 +99,34 @@ end
 # Saída:
 # x     aproximação para a solução do sistema Ax=b
 
-function sor(a::Array{Float64,2}, b::Array{Float64,1}, x::Array{Float64,1}, w::Float64, tol::Float64, kmax::Int64)
-
+function sor(coefficients::Array{Float64,2}, rhs::Array{Float64,1}, initial_guess_original::Array{Float64,1}, omega::Float64, tolerance::Float64, max_iterations::Int64)::Array{Float64,1}
 ##################
 #Digite seu código aqui
-
-
+    num_rows = size(coefficients, 1)
+    next_guess = copy(initial_guess_original)
+    initial_guess = copy(initial_guess_original)
+    for iteration in 1:max_iterations
+        for row_index in 1:num_rows
+            if coefficients[row_index, row_index] < tolerance throw(ArgumentError("Matrix is singular or too close to singular.")) end
+            accumulated_sum = 0.0
+            for column_index in 1:num_rows
+                if column_index != row_index
+                    guess_to_sum = (column_index < row_index ? next_guess : initial_guess)[column_index]
+                    accumulated_sum += coefficients[row_index, column_index] * guess_to_sum
+                end
+            end
+            next_guess[row_index] = (1 - omega)*initial_guess[row_index] +
+                omega*(rhs[row_index] - accumulated_sum) / coefficients[row_index, row_index]
+        end
+        if stop_criterion(initial_guess, next_guess, tolerance)
+            println("SOR method converged in $iteration iterations")
+            return next_guess
+        elseif iteration == max_iterations
+            throw(ArgumentError("Maximum number of iterations reached."))
+        end
+        initial_guess = copy(next_guess)
+    end
 ##################
-
-    return x
 end
 
 # =====================================================================
@@ -181,11 +200,15 @@ function main()
     tolerance = 1e-8
     max_iterations = 1000
     n = (m - 1)^2
+    omega = 1.1
+
     block_matrix::Matrix{Float64} = build_block_matrix(m)
     rhs::Vector{Float64} = build_solution_vector(m, h)
     initial_guess = zeros(n)
+
     jacobi_solution = jacobi(block_matrix, rhs, initial_guess, tolerance, max_iterations)
     gauss_seidel_solution = gauss_seidel(block_matrix, rhs, initial_guess, tolerance, max_iterations)
+    sor_solution = sor(block_matrix, rhs, initial_guess, omega, tolerance, max_iterations)
 end
 
 main()
