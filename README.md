@@ -30,7 +30,9 @@ julia {{filename}}.jl
 ## Author
 
 Eduardo Hiroji Brandão Haraguchi
+
 Mechanical Engineering Undergraduate
+
 Instituto Tecnológico de Aeronáutica (ITA)
 
 ## Course Information
