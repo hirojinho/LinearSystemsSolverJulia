@@ -407,11 +407,22 @@ main()
 # podendo até prejudicar a convergência. Para os casos analisados, valores de ω entre 1.6 e 1.9 proporcionaram uma redução significativa
 # no número de iterações, especialmente para sistemas maiores.
 # =====================================================================
+# 4. Método dos Gradientes Conjugados:
+#
+# O método dos Gradientes Conjugados apresentou o melhor desempenho entre todos os métodos analisados, com um número significativamente
+# menor de iterações para convergência. Este método é particularmente eficiente para sistemas lineares simétricos e definidos positivos,
+# como é o caso do sistema estudado. A principal vantagem do método dos Gradientes Conjugados é que ele converge em no máximo n iterações
+# para um sistema de dimensão n, e na prática, frequentemente converge muito antes disso.
+#
+# A eficiência do método dos Gradientes Conjugados se deve a sua capacidade de minimizar o erro na direção do gradiente do funcional
+# quadrático associado ao sistema, utilizando informações de todas as iterações anteriores para escolher a melhor direção de busca.
+# Além disso, o método não requer a escolha de parâmetros de relaxação, como no caso do SOR, o que o torna mais robusto e fácil de implementar.
+# =====================================================================
 # Resumo geral:
 #
 # O Jacobi é o mais simples, mas o mais lento.
 # O Gauss-Seidel já apresenta uma melhora considerável.
-# O SOR, com escolha adequada de ω, é o mais eficiente, podendo reduzir drasticamente o número de iterações necessárias para convergência,
-# principalmente em sistemas de maior dimensão. Esses resultados ilustram a importância de escolher o método iterativo adequado e, no caso do SOR,
-# ajustar corretamente o parâmetro de relaxação para obter o melhor desempenho possível.
+# O SOR, com escolha adequada de ω, é o mais eficiente entre os métodos iterativos clássicos.
+# O método dos Gradientes Conjugados supera todos os outros métodos em termos de eficiência e escalabilidade,
+# sendo a melhor escolha para sistemas lineares simétricos e definidos positivos de grande porte.
 # =====================================================================
