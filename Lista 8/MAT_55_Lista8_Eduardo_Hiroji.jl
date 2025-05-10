@@ -148,6 +148,48 @@ function sor(
 end
 
 # =====================================================================
+#                        Método dos Gradientes Conjugados
+# =====================================================================
+# Dados de entrada:
+# a     matriz, nxn não singular
+# b	vetor, n
+# x	vetor, n, aproximação inicial
+# w	escalar, parâmetro do método SOR
+# tol	escalar, tolerância para o critério de parada
+# kmax	escalar, número máximo de iterações permitido
+#
+# Saída:
+# x     aproximação para a solução do sistema Ax=b
+
+function conjugate_gradients(
+    coefficients::Array{Float64,2},
+    rhs::Array{Float64,1},
+    initial_guess_original::Array{Float64,1},
+    tolerance::Float64,
+    max_iterations::Int64)::Tuple{Int64, Array{Float64,1}}
+##################
+#Digite seu código aqui
+    residue = rhs - coefficients * initial_guess_original
+    conjugate_direction = copy(residue)
+    guess = copy(initial_guess_original)
+    for iteration in 1:max_iterations
+        last_guess = copy(guess)
+        alpha = (residue')*conjugate_direction/(conjugate_direction'*coefficients*conjugate_direction)
+        guess += alpha * conjugate_direction
+        residue = rhs - coefficients * guess
+        beta = - (residue')*coefficients*conjugate_direction/(conjugate_direction'*coefficients*conjugate_direction)
+        conjugate_direction = residue + beta * conjugate_direction
+        if stop_criterion(last_guess, guess, tolerance)
+            println("Conjugate Gradients method converged in $iteration iterations for m = $(Int64(sqrt(size(coefficients, 1)) + 1))")
+            return iteration, guess
+        elseif iteration == max_iterations
+            throw(ArgumentError("Maximum number of iterations reached."))
+        end
+    end
+##################
+end
+
+# =====================================================================
 # 			Helper functions
 # =====================================================================
 function norm(vector::Array{Float64,1})::Float64
@@ -237,6 +279,10 @@ function main()
             sor_iters, _ = sor(block_matrix, rhs, initial_guess, omega_i, tolerance, max_iterations)
             push!(results, (method="SOR", m=m, omega=omega_i, iterations=sor_iters))
         end
+
+        conjugate_gradients_iters, _ = conjugate_gradients(block_matrix, rhs, initial_guess, tolerance, max_iterations)
+        push!(results, (method="Conjugate Gradients", m=m, omega=NaN, iterations=conjugate_gradients_iters))
+
         println("\n")
     end
 
@@ -245,13 +291,13 @@ function main()
     # 		         Resultados obtidos
     # =====================================================================
     #Exiba os resultados obtidos em uma tabela. Você pode usar o comando @printf para imprimir os dados. No terminal julia, digite ? e na sequência @printf para obter ajuda sobre o comando.
-    @printf("%-15s %-8s %-8s %-12s\n", "Method", "m", "Omega", "Iterations")
+    @printf("%-25s %-8s %-8s %-12s\n", "Method", "m", "Omega", "Iterations")
     @printf("%s\n", "-"^45)
     for r in results
         if isnan(r.omega)
-            @printf("%-15s %-8d %-8s %-12d\n", r.method, r.m, "-", r.iterations)
+            @printf("%-25s %-8d %-8s %-12d\n", r.method, r.m, "-", r.iterations)
         else
-            @printf("%-15s %-8d %-8.1f %-12d\n", r.method, r.m, r.omega, r.iterations)
+            @printf("%-25s %-8d %-8.1f %-12d\n", r.method, r.m, r.omega, r.iterations)
         end
     end
     @printf("%s\n", "-"^45)
