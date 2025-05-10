@@ -1,4 +1,5 @@
 using Printf
+using Plots
 
 # =====================================================================
 # *********************************************************************
@@ -254,13 +255,82 @@ function build_solution_vector(m::Int64, h::Float64)::Vector{Float64}
     return rhs
 end
 
+function print_results(
+    results::Vector{NamedTuple{(:method, :m, :omega, :iterations), Tuple{String, Int64, Float64, Int64}}},
+    residue_norms::Dict{String, Float64}
+    )
+    # Print results table
+    @printf("%-20s %-8s %-8s %-12s %-12s\n", "Method", "m", "Omega", "Iterations", "Residue Norm")
+    @printf("%s\n", "-"^60)
+    for r in results
+        if isnan(r.omega)
+            method = r.method == "Conjugate Gradients" ? "CG" : r.method
+            key = "$(method)_$(r.m)"
+            @printf("%-20s %-8d %-8s %-12d %-12.2e\n", r.method, r.m, "-", r.iterations, residue_norms[key])
+        else
+            key = "SOR_$(r.m)_$(r.omega)"
+            @printf("%-20s %-8d %-8.1f %-12d %-12.2e\n", r.method, r.m, r.omega, r.iterations, residue_norms[key])
+        end
+    end
+    @printf("%s\n", "-"^60)
+end
+
+function plot_results(
+    results::Vector{NamedTuple{(:method, :m, :omega, :iterations), Tuple{String, Int64, Float64, Int64}}},
+    residue_norms::Dict{String, Float64}
+    )
+    # Create plots
+    plot_list = Vector{Plots.Plot{Plots.GRBackend}}()
+
+    # Plot for each m value
+    for (i, m) in enumerate([10, 20, 40])
+        p = plot(title="Residue Norm vs Iterations (m=$m)", 
+        xlabel="Iterations", 
+        ylabel="Residue Norm", 
+        yscale=:log10, 
+        legend=:topright,
+        size=(800,400))
+
+        # Plot Jacobi
+        key = "Jacobi_$(m)"
+        scatter!(p, [results[findfirst(r -> r.method == "Jacobi" && r.m == m, results)].iterations], 
+        [residue_norms[key]], label="Jacobi", marker=:circle)
+
+        # Plot Gauss-Seidel
+        key = "Gauss-Seidel_$(m)"
+        scatter!(p, [results[findfirst(r -> r.method == "Gauss-Seidel" && r.m == m, results)].iterations], 
+        [residue_norms[key]], label="Gauss-Seidel", marker=:square)
+
+        # Plot SOR
+        sor_results = filter(r -> r.method == "SOR" && r.m == m, results)
+        scatter!(p, [r.iterations for r in sor_results], 
+        [residue_norms["SOR_$(m)_$(r.omega)"] for r in sor_results], 
+        label="SOR", marker=:diamond)
+
+        # Plot Conjugate Gradients
+        key = "CG_$(m)"
+        scatter!(p, [results[findfirst(r -> r.method == "Conjugate Gradients" && r.m == m, results)].iterations], 
+        [residue_norms[key]], label="Conjugate Gradients", marker=:star5)
+
+        # Save individual plot
+        savefig(p, "residue_norms_m$(m).png")
+
+        push!(plot_list, p)
+    end
+
+    # Create a combined plot with all three subplots
+    p_combined = plot(plot_list..., layout=(3,1), size=(800,1200))
+    savefig(p_combined, "residue_norms_combined.png")
+end
+
 function main()
     h = [0.1, 0.05, 0.025]
     tolerance = 1e-8
     max_iterations = Int64(1e8)
     omega = collect(1:0.1:1.9)
 
-    results = []
+    results = Vector{NamedTuple{(:method, :m, :omega, :iterations), Tuple{String, Int64, Float64, Int64}}}()
+    residue_norms = Dict{String, Float64}()
 
     for h_i in h
         m = Int64(1/h_i)
@@ -270,37 +340,40 @@ function main()
         rhs::Vector{Float64} = build_solution_vector(m, h_i)
         initial_guess = zeros(n)
 
-        jacobi_iters, _ = jacobi(block_matrix, rhs, initial_guess, tolerance, max_iterations)
+        # Jacobi
+        jacobi_iters, jacobi_solution = jacobi(block_matrix, rhs, initial_guess, tolerance, max_iterations)
+        jacobi_residue = norm(rhs - block_matrix * jacobi_solution)
         push!(results, (method="Jacobi", m=m, omega=NaN, iterations=jacobi_iters))
-        gauss_seidel_iters, _ = gauss_seidel(block_matrix, rhs, initial_guess, tolerance, max_iterations)
-        push!(results, (method="Gauss-Seidel", m=m, omega=NaN, iterations=gauss_seidel_iters))
+        residue_norms["Jacobi_$(m)"] = jacobi_residue
 
+        # Gauss-Seidel
+        gs_iters, gs_solution = gauss_seidel(block_matrix, rhs, initial_guess, tolerance, max_iterations)
+        gs_residue = norm(rhs - block_matrix * gs_solution)
+        push!(results, (method="Gauss-Seidel", m=m, omega=NaN, iterations=gs_iters))
+        residue_norms["Gauss-Seidel_$(m)"] = gs_residue
+
+        # SOR
         for omega_i in omega
-            sor_iters, _ = sor(block_matrix, rhs, initial_guess, omega_i, tolerance, max_iterations)
+            sor_iters, sor_solution = sor(block_matrix, rhs, initial_guess, omega_i, tolerance, max_iterations)
+            sor_residue = norm(rhs - block_matrix * sor_solution)
             push!(results, (method="SOR", m=m, omega=omega_i, iterations=sor_iters))
+            residue_norms["SOR_$(m)_$(omega_i)"] = sor_residue
         end
 
-        conjugate_gradients_iters, _ = conjugate_gradients(block_matrix, rhs, initial_guess, tolerance, max_iterations)
-        push!(results, (method="Conjugate Gradients", m=m, omega=NaN, iterations=conjugate_gradients_iters))
+        # Conjugate Gradients
+        cg_iters, cg_solution = conjugate_gradients(block_matrix, rhs, initial_guess, tolerance, max_iterations)
+        cg_residue = norm(rhs - block_matrix * cg_solution)
+        push!(results, (method="Conjugate Gradients", m=m, omega=NaN, iterations=cg_iters))
+        residue_norms["CG_$(m)"] = cg_residue
 
         println("\n")
     end
 
+    # Print results table
+    print_results(results::Vector{NamedTuple{(:method, :m, :omega, :iterations), Tuple{String, Int64, Float64, Int64}}}, residue_norms::Dict{String, Float64})
 
-    # =====================================================================
-    # 		         Resultados obtidos
-    # =====================================================================
-    #Exiba os resultados obtidos em uma tabela. Você pode usar o comando @printf para imprimir os dados. No terminal julia, digite ? e na sequência @printf para obter ajuda sobre o comando.
-    @printf("%-25s %-8s %-8s %-12s\n", "Method", "m", "Omega", "Iterations")
-    @printf("%s\n", "-"^45)
-    for r in results
-        if isnan(r.omega)
-            @printf("%-25s %-8d %-8s %-12d\n", r.method, r.m, "-", r.iterations)
-        else
-            @printf("%-25s %-8d %-8.1f %-12d\n", r.method, r.m, r.omega, r.iterations)
-        end
-    end
-    @printf("%s\n", "-"^45)
+    # Create plots
+    plot_results(results::Vector{NamedTuple{(:method, :m, :omega, :iterations), Tuple{String, Int64, Float64, Int64}}}, residue_norms::Dict{String, Float64})
 end
 
 main()
