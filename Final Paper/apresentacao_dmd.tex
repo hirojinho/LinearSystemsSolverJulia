@@ -1,0 +1,291 @@
+\documentclass[aspectratio=169]{beamer}
+
+\usepackage[utf8]{inputenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+% Tema
+\usetheme{Madrid}
+\usecolortheme{seahorse}
+
+% Informações do título
+\title{Decomposição em Modos Dinâmicos (DMD)}
+\subtitle{Teoria Computacional e Conexões com Métodos de Álgebra Linear}
+\author{Eduardo Hiroji Brandão Haraguchi}
+\institute{Instituto Tecnológico de Aeronáutica\\MAT-55}
+\date{\today}
+
+\begin{document}
+
+% Slide de título
+\begin{frame}
+    \titlepage
+\end{frame}
+
+% Slide de overview
+\begin{frame}{Roteiro da Apresentação}
+    \tableofcontents
+\end{frame}
+
+\section{Introdução e Motivação}
+
+\begin{frame}{Introdução}
+    \begin{itemize}
+        \item \textbf{DMD (Dynamic Mode Decomposition)}: Extensão computacional de métodos de álgebra linear
+        \item Desenvolvida por Schmid (2010)
+        \item Aplicação sistemática de conceitos estudados em MAT-55:
+        \begin{itemize}
+            \item Decomposição SVD
+            \item Métodos de quadrados mínimos
+            \item Técnicas de ortogonalização
+        \end{itemize}
+        \item \textbf{Objetivo}: Extrair informações dinâmicas de dados temporais
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Motivação}
+    \begin{block}{Por que DMD?}
+        \begin{itemize}
+            \item Sistemas dinâmicos complexos geram dados temporais
+            \item Necessidade de identificar padrões dinâmicos
+            \item Métodos clássicos de álgebra linear são a base
+            \item Robustez numérica herdada dos métodos fundamentais
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+\section{Teoria Computacional da DMD}
+
+\begin{frame}{Formulação Matricial do Problema}
+    \begin{columns}
+        \column{0.6\textwidth}
+        Dados dois conjuntos de observações temporais:
+        \begin{align}
+            X &= [x_1, x_2, \ldots, x_{m-1}] \in \mathbb{R}^{n \times m}\\
+            Y &= [x_2, x_3, \ldots, x_m] \in \mathbb{R}^{n \times m}
+        \end{align}
+        
+        \textbf{Objetivo}: Encontrar $A \in \mathbb{R}^{n \times n}$ tal que:
+        \begin{equation}
+            Y \approx AX
+        \end{equation}
+        
+        \column{0.4\textwidth}
+        \begin{block}{Exemplo}
+            \begin{itemize}
+                \item $x_1, x_2, \ldots, x_m$: snapshots temporais
+                \item $X$: dados no tempo $t$
+                \item $Y$: dados no tempo $t+1$
+                \item Relação linear: $Y \approx AX$
+            \end{itemize}
+        \end{block}
+    \end{columns}
+    
+    \vspace{0.5cm}
+    \begin{block}{Conexão com MAT-55}
+        Problema de quadrados mínimos: $Ax \approx b$
+    \end{block}
+\end{frame}
+
+\begin{frame}{Decomposição SVD como Base}
+    \begin{block}{Aplicação da SVD}
+        \begin{equation}
+            X = U\Sigma V^T
+        \end{equation}
+        onde $U \in \mathbb{R}^{n \times n}$ e $V \in \mathbb{R}^{m \times m}$ são ortogonais
+    \end{block}
+    
+    \begin{block}{Truncagem SVD}
+        \begin{equation}
+            X \approx U_r\Sigma_r V_r^T
+        \end{equation}
+        Mantendo apenas os $r$ primeiros valores singulares
+    \end{block}
+    
+    \begin{alertblock}{Importância}
+        \begin{itemize}
+            \item Redução de dimensionalidade
+            \item Controle de condicionamento numérico
+            \item Base para estabilidade do algoritmo
+        \end{itemize}
+    \end{alertblock}
+\end{frame}
+
+\begin{frame}{Construção do Operador DMD Reduzido}
+    \begin{block}{Operador de Dimensão Completa}
+        \begin{equation}
+            A = YX^{\dagger} = YV_r\Sigma_r^{-1}U_r^T
+        \end{equation}
+        onde $X^{\dagger}$ é a pseudoinversa de Moore-Penrose
+    \end{block}
+    
+    \begin{block}{Operador Reduzido}
+        Para $n$ grande, trabalhamos com:
+        \begin{equation}
+            \tilde{A} = U_r^T A U_r = U_r^T Y V_r \Sigma_r^{-1}
+        \end{equation}
+        onde $\tilde{A} \in \mathbb{R}^{r \times r}$ com $r \ll n$
+    \end{block}
+    
+    \begin{itemize}
+        \item \textbf{Dupla redução dimensional}: espacial e temporal
+        \item Preserva propriedades espectrais essenciais
+        \item Eficiência computacional
+    \end{itemize}
+\end{frame}
+
+\section{Algoritmos DMD}
+
+\begin{frame}{Algoritmo DMD Clássico}
+    \begin{algorithm}[H]
+        \caption{DMD Clássico}
+        \begin{algorithmic}[1]
+            \REQUIRE $X, Y \in \mathbb{R}^{n \times m}$, rank $r$
+            \STATE Aplicar SVD: $X = U\Sigma V^T$
+            \STATE Truncar: $U_r, \Sigma_r, V_r$
+            \STATE Construir: $\tilde{A} = U_r^T Y V_r \Sigma_r^{-1}$
+            \STATE Resolver: $\tilde{A}W = W\Lambda$
+            \STATE Modos: $\Phi = U_r W$
+            \STATE Amplitudes: $b = \Phi^{\dagger} x_1$
+            \RETURN $\Phi, \Lambda, b$
+        \end{algorithmic}
+    \end{algorithm}
+    
+    \begin{itemize}
+        \item Modos residem no subespaço gerado por $U_r$
+        \item Eficiente computacionalmente
+        \item Base para variantes mais sofisticadas
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Algoritmo DMD Exato}
+    \begin{block}{Diferença Principal}
+        \textbf{DMD Clássico}: $\Phi = U_r W$ (projeção no subespaço de $X$)
+        
+        \textbf{DMD Exato}: $\Phi_{\text{exact}} = \frac{1}{\lambda} Y V_r \Sigma_r^{-1} W$ (imagem de $Y$)
+    \end{block}
+    
+    \begin{block}{Relação Matemática}
+        \begin{equation}
+            \Phi = \mathbb{P}_X \Phi_{\text{exact}}
+        \end{equation}
+        onde $\mathbb{P}_X = UU^T$ é a projeção ortogonal
+    \end{block}
+    
+    \begin{itemize}
+        \item DMD Exato utiliza toda a informação disponível
+        \item Maior precisão na representação dos modos
+        \item Autovetores verdadeiros do operador $A = YX^+$
+    \end{itemize}
+\end{frame}
+
+\section{DMD vs PCA}
+
+\begin{frame}{Comparação: DMD vs PCA}
+    \begin{table}[h]
+        \centering
+        \small
+        \begin{tabular}{|l|l|l|}
+            \hline
+            \textbf{Aspecto} & \textbf{PCA} & \textbf{DMD} \\
+            \hline
+            Ortogonalidade & Modos ortogonais & Não necessariamente \\
+            \hline
+            Ordenação & Por variância & Por relevância dinâmica \\
+            \hline
+            Info. temporal & Não captura & Frequências e crescimento \\
+            \hline
+            Interpretação & Estruturas energéticas & Dinâmicas coerentes \\
+            \hline
+            Reconstrução & $x_k = \Phi\alpha_k$ & $x_k = \sum_j \phi_j \lambda_j^k b_j$ \\
+            \hline
+        \end{tabular}
+    \end{table}
+    
+    \begin{block}{Base Comum}
+        Ambos utilizam SVD, mas com objetivos distintos:
+        \begin{itemize}
+            \item \textbf{PCA}: Decomposição espacial ótima
+            \item \textbf{DMD}: Decomposição temporal-espacial
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+\section{Fundamentação Teórica}
+
+\begin{frame}{Conexão com o Operador de Koopman}
+    \begin{block}{Operador de Koopman}
+        Para sistema $x_{k+1} = F(x_k)$, o operador $\mathcal{K}$ atua sobre funções:
+        \begin{equation}
+            \mathcal{K}g(x) = g(F(x))
+        \end{equation}
+    \end{block}
+    
+    \begin{block}{Aproximação DMD}
+        \begin{equation}
+            \tilde{A} \approx \mathcal{K}|_{\text{span}\{x_1, x_2, \ldots, x_m\}}
+        \end{equation}
+    \end{block}
+    
+    \begin{itemize}
+        \item Modos DMD $\approx$ eigenfunctions de Koopman
+        \item Autovalores DMD $\approx$ eigenvalues de Koopman
+        \item \textbf{Implicação}: DMD funciona mesmo para sistemas não-lineares
+        \item Fundamento teórico rigoroso
+    \end{itemize}
+\end{frame}
+
+\section{Conclusões}
+
+\begin{frame}{Resumo do Trabalho}
+    \begin{block}{Aspectos Teóricos}
+        \begin{itemize}
+            \item Formulação rigorosa do problema DMD
+            \item Conexão sistemática com métodos de MAT-55
+            \item Análise detalhada dos aspectos algorítmicos
+        \end{itemize}
+    \end{block}
+    
+    \begin{block}{Aspectos Computacionais}
+        \begin{itemize}
+            \item Algoritmos implementáveis com técnicas do curso
+            \item Considerações de estabilidade numérica
+            \item Variantes algorítmicas (Clássico vs Exato)
+        \end{itemize}
+    \end{block}
+    
+    \begin{block}{Fundamentação Matemática}
+        \begin{itemize}
+            \item Conexão com operador de Koopman
+            \item Justificativa teórica para aplicação a sistemas não-lineares
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+\begin{frame}{Reflexões Finais}
+    \begin{alertblock}{Elegância dos Métodos de Álgebra Linear}
+        DMD exemplifica como conceitos clássicos se estendem naturalmente para problemas contemporâneos de análise de dados dinâmicos
+    \end{alertblock}
+    
+    \begin{block}{Importância da Base Sólida}
+        \begin{itemize}
+            \item Compreensão de SVD, quadrados mínimos e ortogonalização é essencial
+            \item Implementação eficiente requer domínio dos fundamentos
+            \item Estabilidade numérica herdada dos métodos base
+        \end{itemize}
+    \end{block}
+    
+    \begin{center}
+        \Large \textbf{Obrigado!}
+        
+        \vspace{0.5cm}
+        Perguntas?
+    \end{center}
+\end{frame}
+
+\end{document} 

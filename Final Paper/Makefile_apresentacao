@@ -1,0 +1,33 @@
+# Makefile para compilar a apresentação DMD
+# Uso: make apresentacao
+
+LATEX = pdflatex
+BIBTEX = bibtex
+TARGET = apresentacao_dmd
+SOURCE = $(TARGET).tex
+
+.PHONY: all clean apresentacao
+
+apresentacao: $(TARGET).pdf
+
+$(TARGET).pdf: $(SOURCE)
+	$(LATEX) $(SOURCE)
+	$(LATEX) $(SOURCE)  # Segunda compilação para referencias cruzadas
+
+clean:
+	rm -f *.aux *.log *.nav *.out *.snm *.toc *.vrb *.fls *.fdb_latexmk
+
+distclean: clean
+	rm -f $(TARGET).pdf
+
+# Comando para abrir o PDF após compilar (macOS)
+view: $(TARGET).pdf
+	open $(TARGET).pdf
+
+help:
+	@echo "Comandos disponíveis:"
+	@echo "  make apresentacao  - Compila a apresentação"
+	@echo "  make clean         - Remove arquivos temporários"
+	@echo "  make distclean     - Remove todos os arquivos gerados"
+	@echo "  make view          - Abre o PDF (macOS)"
+	@echo "  make help          - Mostra esta ajuda" 

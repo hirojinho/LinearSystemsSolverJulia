@@ -1,0 +1,400 @@
+% !TeX spellcheck = pt_BR
+\documentclass[a4,11pt]{pssbmac}
+
+\usepackage[brazil]{babel}      % para texto em Português
+\usepackage[utf8]{inputenc}   % para acentuação em Português com o uso do Unicode
+
+\usepackage{graphics}
+\usepackage{subfigure}
+\usepackage{graphicx}
+\usepackage[centertags]{amsmath}
+\usepackage{indentfirst,amsfonts,amssymb,amsthm,newlfont}
+\usepackage{longtable}
+\usepackage{cite}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{booktabs}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+\begin{document}
+
+%********************************************************
+\title{Decomposição em Modos Dinâmicos: Teoria Computacional e Conexões com Métodos de Álgebra Linear}
+
+\author{
+    {\large Eduardo Hiroji Brandão Haraguchi}\thanks{eduardo.haraguchi@ga.ita.br}\\
+    {\small Instituto Tecnológico de Aeronáutica, São José dos Campos, SP} \\
+}
+
+\criartitulo
+
+\begin{abstract}
+{\bf Resumo}. Este trabalho apresenta a teoria computacional da Decomposição em Modos Dinâmicos (DMD) através da perspectiva dos métodos de álgebra linear estudados na disciplina MAT-55. O foco está nos aspectos algorítmicos e teóricos do cálculo da decomposição DMD, explorando como técnicas de SVD, fatoração QR, e métodos de ortogonalização se integram para formar um framework computacional robusto. São apresentados os algoritmos fundamentais, variantes computacionais e considerações de estabilidade numérica. O trabalho demonstra como DMD emerge naturalmente da aplicação sistemática de métodos de álgebra linear computacional a problemas de identificação de dinâmicas temporais. Ao final, estabelece-se a conexão entre DMD e a aproximação do operador de Koopman, fornecendo o contexto teórico que fundamenta a metodologia.
+
+\noindent
+{\bf Palavras-chave}. Decomposição em Modos Dinâmicos, Álgebra Linear Computacional, SVD, Fatoração QR, Operador de Koopman, Métodos Numericos
+\end{abstract}
+
+\section{Introdução}
+
+A Decomposição em Modos Dinâmicos (DMD) representa uma extensão computacional direta dos métodos de álgebra linear estudados na disciplina MAT-55. Desenvolvida por Schmid \cite{Schmid2010}, esta técnica aplica sistematicamente conceitos de decomposição matricial, métodos de quadrados mínimos e técnicas de ortogonalização para extrair informações dinâmicas de conjuntos de dados temporais.
+
+O objetivo central deste trabalho é apresentar a teoria computacional que fundamenta DMD, demonstrando como os métodos estudados ao longo do curso se integram para formar um algoritmo coeso e numericamente estável. Diferentemente de abordagens que enfatizam aplicações, este estudo foca nos aspectos algorítmicos e teóricos que tornam DMD uma extensão natural dos conceitos de álgebra linear computacional.
+
+A metodologia DMD pode ser compreendida como uma sequência estruturada de operações de álgebra linear: decomposição em valores singulares para redução de dimensionalidade, formulação de problemas de quadrados mínimos para identificação de operadores lineares, e técnicas de análise espectral para extração de informações dinâmicas. Esta perspectiva revela como DMD herda a robustez numérica e elegância matemática dos métodos clássicos estudados no curso.
+
+\section{Teoria Computacional da DMD}
+
+\subsection{Formulação Matricial do Problema}
+
+O problema fundamental que DMD resolve pode ser formulado em termos de álgebra linear. Dados dois conjuntos de observações temporais consecutivas, organizamos os dados em matrizes:
+
+\begin{align}
+X &= [x_1, x_2, \ldots, x_{m-1}] \in \mathbb{R}^{n \times m} \label{eq:X_matrix}\\
+Y &= [x_2, x_3, \ldots, x_m] \in \mathbb{R}^{n \times m} \label{eq:Y_matrix}
+\end{align}
+
+O objetivo é encontrar a matriz $A \in \mathbb{R}^{n \times n}$ que melhor satisfaz:
+
+\begin{equation}
+Y \approx AX \label{eq:fundamental_relation}
+\end{equation}
+
+Esta formulação conecta-se diretamente com os problemas de quadrados mínimos, onde diferentes métodos foram aplicados para resolver sistemas sobredeterminados da forma $Ax \approx b$.
+
+\subsection{Decomposição SVD como Base Computacional}
+
+A abordagem DMD utiliza SVD como ferramenta fundamental. Aplicamos SVD à matriz $X$:
+
+\begin{equation}
+X = U\Sigma V^T \label{eq:svd_decomposition}
+\end{equation}
+
+onde $U \in \mathbb{R}^{n \times n}$ e $V \in \mathbb{R}^{m \times m}$ são ortogonais, e $\Sigma \in \mathbb{R}^{n \times m}$ contém os valores singulares em ordem decrescente.
+
+A truncagem SVD, é aplicada mantendo apenas os $r$ primeiros valores singulares:
+
+\begin{equation}
+X \approx U_r\Sigma_r V_r^T \label{eq:truncated_svd}
+\end{equation}
+
+Esta truncagem conecta-se com os estudos de condicionamento e análise de sensibilidade realizados no curso, onde valores singulares pequenos indicam direções de alta sensibilidade numérica.
+
+\subsection{Construção do Operador DMD Reduzido}
+
+A construção do operador DMD reduzido representa o núcleo algoritmo da metodologia DMD. Esta seção detalha o processo de construção passo a passo, evidenciando as conexões com os métodos de álgebra linear estudados.
+
+\subsubsection{Derivação do Operador Reduzido}
+
+Dado o problema fundamental $Y \approx AX$ e a decomposição SVD $X = U_r\Sigma_r V_r^T$, a construção do operador reduzido segue uma sequência lógica de manipulações matriciais.
+
+O operador $A$ de dimensão completa satisfaz:
+\begin{equation}
+A = YX^{\dagger} = YV_r\Sigma_r^{-1}U_r^T \label{eq:full_operator}
+\end{equation}
+
+onde $X^{\dagger}$ é a pseudoinversa de Moore-Penrose de $X$, conceito central nos métodos de quadrados mínimos estudados.
+
+Entretanto, trabalhar diretamente com $A \in \mathbb{R}^{n \times n}$ é computacionalmente inviável para $n$ grande. A estratégia DMD consiste em construir um operador reduzido $\tilde{A} \in \mathbb{R}^{r \times r}$ que preserve as propriedades espectrais essenciais.
+
+\subsubsection{Projeção no Subespaço POD}
+
+A construção do operador reduzido inicia com a projeção de $A$ no subespaço gerado pelas colunas de $U_r$. Esta projeção é obtida através de:
+
+\begin{equation}
+\tilde{A} = U_r^T A U_r \label{eq:projection_derivation}
+\end{equation}
+
+Substituindo a expressão de $A$ da equação \eqref{eq:full_operator}:
+
+\begin{align}
+\tilde{A} &= U_r^T (YV_r\Sigma_r^{-1}U_r^T) U_r\\
+&= U_r^T Y V_r \Sigma_r^{-1} U_r^T U_r\\
+&= U_r^T Y V_r \Sigma_r^{-1} \label{eq:dmd_operator_derivation}
+\end{align}
+
+A última igualdade utiliza a propriedade de ortogonalidade $U_r^T U_r = I_r$, onde $I_r$ é a matriz identidade de ordem $r$.
+
+\subsubsection{Análise das Transformações Dimensionais}
+
+A construção do operador reduzido envolve duas transformações dimensionais simultâneas que merecem análise detalhada:
+
+\textbf{Dimensões dos Dados Originais:}
+\begin{align}
+X, Y &\in \mathbb{R}^{n \times m} \quad \text{(n variáveis espaciais, m snapshots temporais)}
+\end{align}
+
+\textbf{Decomposição SVD e Redução:}
+\begin{align}
+X &= U\Sigma V^T\\
+U_r &\in \mathbb{R}^{n \times r}, \quad \Sigma_r \in \mathbb{R}^{r \times r}, \quad V_r \in \mathbb{R}^{m \times r}
+\end{align}
+
+A construção $\tilde{A} = U_r^T Y V_r \Sigma_r^{-1}$ realiza transformações em duas dimensões:
+
+\begin{enumerate}
+\item \textbf{Transformação Temporal} ($V_r\Sigma_r^{-1} \in \mathbb{R}^{m \times r}$):
+\begin{equation}
+\mathbb{R}^m \xrightarrow{V_r\Sigma_r^{-1}} \mathbb{R}^r
+\end{equation}
+Mapeia dos $m$ snapshots temporais para $r$ coordenadas principais, capturando as combinações temporais mais significativas identificadas pelo SVD.
+
+\item \textbf{Projeção Espacial} ($U_r^T \in \mathbb{R}^{r \times n}$):
+\begin{equation}
+\mathbb{R}^n \xrightarrow{U_r^T} \mathbb{R}^r
+\end{equation}
+Projeta do espaço espacial completo de $n$ variáveis para o subespaço de $r$ modos espaciais dominantes.
+\end{enumerate}
+
+\textbf{Interpretação do Processo Completo:}
+
+O algoritmo DMD executa uma \textit{dupla redução dimensional}:
+\begin{align}
+Y V_r \Sigma_r^{-1} &: \mathbb{R}^{n \times m} \rightarrow \mathbb{R}^{n \times r} \quad \text{(redução temporal)}\\
+U_r^T (Y V_r \Sigma_r^{-1}) &: \mathbb{R}^{n \times r} \rightarrow \mathbb{R}^{r \times r} \quad \text{(redução espacial)}
+\end{align}
+
+Esta abordagem é fundamentalmente diferente de uma simples mudança de base: ao invés de transformar de um subespaço para outro de mesma dimensão, DMD constrói um operador que funciona no espaço produto dos subespaços espacial e temporal mais relevantes.
+
+A eficácia desta dupla redução reside no fato de que sistemas dinâmicos reais frequentemente possuem dinâmicas que residem em subespaços de baixa dimensão, tanto espacialmente quanto temporalmente, tornando esta aproximação não apenas computacionalmente eficiente, mas também fisicamente consistente.
+
+\subsection{Análise Espectral e Extração de Modos}
+
+A análise espectral de $\tilde{A}$ construído via equação \eqref{eq:dmd_operator_derivation} fornece os elementos fundamentais da decomposição DMD. Calculamos os autovalores e autovetores:
+
+\begin{equation}
+\tilde{A}W = W\Lambda \label{eq:eigendecomposition}
+\end{equation}
+
+onde $\Lambda = \text{diag}(\lambda_1, \lambda_2, \ldots, \lambda_r)$ contém os autovalores DMD e $W$ os autovetores correspondentes.
+
+Os modos dinâmicos são reconstruídos no espaço original através de:
+
+\begin{equation}
+\Phi = U_r W \label{eq:dynamic_modes}
+\end{equation}
+
+Esta operação conecta-se com os conceitos de mudança de base e transformações lineares estudados ao longo do curso.
+
+\section{Aspectos Algorítmicos e Implementação}
+
+\subsection{Algoritmo DMD Clássico}
+
+O algoritmo DMD pode ser implementado utilizando exclusivamente as técnicas estudadas em MAT-55:
+
+\begin{algorithm}
+\caption{Algoritmo DMD Clássico}
+\begin{algorithmic}[1]
+\REQUIRE Matrizes $X, Y \in \mathbb{R}^{n \times m}$, tolerância $\epsilon$, rank $r$
+\ENSURE Modos $\Phi$, autovalores $\lambda$, amplitudes $b$
+\STATE Aplicar SVD: $X = U\Sigma V^T$
+\STATE Truncar: $U_r, \Sigma_r, V_r$ (primeiros $r$ componentes)
+\STATE Construir operador reduzido: $\tilde{A} = U_r^T Y V_r \Sigma_r^{-1}$
+\STATE Resolver problema de autovalores: $\tilde{A}W = W\Lambda$
+\STATE Reconstruir modos: $\Phi = U_r W$
+\STATE Calcular amplitudes: $b = \Phi^{\dagger} x_1$ (pseudoinversa)
+\RETURN $\Phi, \Lambda, b$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Algoritmo DMD Exato}
+
+O DMD exato oferece uma alternativa que reconstrói os modos dinâmicos no espaço original completo, evitando a projeção no subespaço POD. Esta variante é particularmente importante quando se deseja maior precisão na representação dos modos:
+
+\begin{algorithm}
+\caption{Algoritmo DMD Exato}
+\begin{algorithmic}[1]
+\REQUIRE Matrizes $X, Y \in \mathbb{R}^{n \times m}$, tolerância $\epsilon$, rank $r$
+\ENSURE Modos $\Phi_{\text{exact}}$, autovalores $\lambda$, amplitudes $b$
+\STATE Aplicar SVD: $X = U\Sigma V^T$
+\STATE Truncar: $U_r, \Sigma_r, V_r$ (primeiros $r$ componentes)
+\STATE Construir operador reduzido: $\tilde{A} = U_r^T Y V_r \Sigma_r^{-1}$
+\STATE Resolver problema de autovalores: $\tilde{A}W = W\Lambda$
+\STATE Reconstruir modos exatos: $\Phi_{\text{exact}} = \frac{1}{\lambda} Y V_r \Sigma_r^{-1} W$
+\STATE Calcular amplitudes: $b = \Phi_{\text{exact}}^{\dagger} x_1$
+\RETURN $\Phi_{\text{exact}}, \Lambda, b$
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{Diferenças entre DMD Clássico e DMD Exato}
+
+As principais diferenças entre as duas abordagens residem na construção dos modos dinâmicos:
+
+\begin{itemize}
+\item \textbf{DMD Clássico}: Os modos são dados por $\Phi = U_r W$, residindo no subespaço gerado pelas colunas de $U_r$ (imagem de $X$)
+\item \textbf{DMD Exato}: Os modos são dados por $\Phi_{\text{exact}} = \frac{1}{\lambda} Y V_r \Sigma_r^{-1} W$, residindo na imagem de $Y$
+\end{itemize}
+
+Teoricamente, os modos exatos são autovetores verdadeiros do operador aproximado $A = YX^+$, enquanto os modos clássicos são suas projeções no subespaço de $X$. Esta diferença é expressa matematicamente pela relação:
+
+\begin{equation}
+\Phi = \mathbb{P}_X \Phi_{\text{exact}}
+\end{equation}
+
+onde $\mathbb{P}_X = UU^T$ é a projeção ortogonal na imagem de $X$.
+
+Para séries temporais sequenciais onde o último vetor está no espaço gerado pelos vetores anteriores, ambos os métodos coincidem. Entretanto, o DMD exato utiliza toda a informação disponível, incluindo o último snapshot, proporcionando frequentemente maior precisão na representação dos modos dinâmicos.
+
+A implementação de DMD herda questões de estabilidade dos métodos subjacentes de álgebra linear. Os principais aspectos a considerar incluem:
+
+\subsection{Variantes Algorítmicas}
+
+\subsubsection{DMD com Métodos de Ortogonalização Alternativos}
+A implementação pode utilizar diferentes métodos de ortogonalização estudados:
+
+\begin{itemize}
+\item \textbf{Gram-Schmidt Modificado}: Para construção incremental da base ortogonal
+\item \textbf{Householder}: Para garantir estabilidade numérica em casos mal-condicionados
+\item \textbf{Givens}: Para aproveitamento de estruturas esparsas quando aplicável
+\end{itemize}
+
+\subsection{Paralelização e Otimização}
+
+A estrutura algorítmica de DMD permite paralelização eficiente:
+
+\begin{itemize}
+\item SVD pode ser paralelizada utilizando bibliotecas otimizadas (LAPACK/BLAS)
+\item Construção de $\tilde{A}$ envolve operações matriciais que se beneficiam de paralelização
+\item Análise espectral de matrizes pequenas ($r \times r$) é computacionalmente eficiente
+\end{itemize}
+
+\section{Análise Comparativa: DMD versus PCA}
+
+\subsection{Fundamentos Matemáticos}
+
+Tanto DMD quanto PCA (Análise de Componentes Principais) utilizam decomposição em valores singulares como base computacional, mas com objetivos distintos:
+
+\subsubsection{PCA: Decomposição Espacial Ótima}
+PCA busca a representação de menor dimensão que minimiza o erro de reconstrução:
+
+\begin{equation}
+\min_{\Phi, \alpha} \sum_{k=1}^{m} \|x_k - \Phi\alpha_k\|_2^2
+\end{equation}
+
+onde $\Phi \in \mathbb{R}^{n \times r}$ são os componentes principais e $\alpha_k \in \mathbb{R}^r$ são os coeficientes.
+
+\subsubsection{DMD: Decomposição Temporal-Espacial}
+DMD busca modos que capturam a dinâmica temporal através do operador linear:
+
+\begin{equation}
+Y \approx AX \quad \text{onde} \quad A = Y X^{\dagger}
+\end{equation}
+
+Os modos DMD são autovetores de $A$, capturando tanto estrutura espacial quanto comportamento temporal.
+
+\subsection{Propriedades dos Modos}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Aspecto} & \textbf{PCA} & \textbf{DMD} \\
+\hline
+Ortogonalidade & Modos ortogonais & Modos não necessariamente ortogonais \\
+\hline
+Ordenação & Por variância explicada & Por relevância dinâmica \\
+\hline
+Informação temporal & Não captura dinâmica & Captura frequências e taxas de crescimento \\
+\hline
+Interpretação física & Estruturas energéticas & Estruturas dinâmicas coerentes \\
+\hline
+Reconstrução & $x_k = \Phi\alpha_k$ & $x_k = \sum_j \phi_j \lambda_j^k b_j$ \\
+\hline
+\end{tabular}
+\caption{Comparação entre propriedades dos modos PCA e DMD}
+\end{table}
+
+\subsection{Aplicabilidade e Limitações}
+
+\subsubsection{Quando Usar PCA}
+\begin{itemize}
+\item Redução de dimensionalidade para análise estatística
+\item Identificação de padrões espaciais dominantes
+\item Dados sem estrutura temporal relevante
+\item Necessidade de modos ortogonais
+\end{itemize}
+
+\subsubsection{Quando Usar DMD}
+\begin{itemize}
+\item Análise de dinâmicas temporais
+\item Identificação de frequências características
+\item Predição de evolução temporal
+\item Sistemas com comportamento oscilatório ou transiente
+\end{itemize}
+
+\subsection{Conexões com Álgebra Linear Computacional}
+
+Ambos os métodos exemplificam a aplicação de conceitos fundamentais estudados no curso:
+
+\begin{itemize}
+\item \textbf{SVD}: Base computacional para ambos os métodos
+\item \textbf{Problemas de quadrados mínimos}: PCA minimiza erro de reconstrução, DMD resolve $AX \approx Y$
+\item \textbf{Análise espectral}: DMD utiliza decomposição em autovalores/autovetores
+\item \textbf{Projeções ortogonais}: PCA projeta dados no subespaço principal
+\item \textbf{Condicionamento numérico}: Ambos herdam propriedades de estabilidade da SVD
+\end{itemize}
+
+\section{DMD e a Aproximação do Operador de Koopman}
+
+A teoria matemática que fundamenta DMD está intrinsecamente conectada com a aproximação do operador de Koopman \cite{Williams2015}. Esta seção estabelece brevemente esta conexão teórica fundamental.
+
+\subsection{Operador de Koopman}
+
+O operador de Koopman $\mathcal{K}$ é um operador linear infinito-dimensional que governa a evolução de observáveis em sistemas dinâmicos não-lineares. Para um sistema dinâmico $x_{k+1} = F(x_k)$, o operador de Koopman atua sobre funções $g: \mathbb{R}^n \rightarrow \mathbb{C}$ segundo:
+
+\begin{equation}
+\mathcal{K}g(x) = g(F(x)) \label{eq:koopman_operator}
+\end{equation}
+
+\subsection{Aproximação DMD}
+
+DMD aproxima o operador de Koopman no subespaço linear gerado pelas observações. Quando aplicamos DMD aos dados $\{x_k\}$, estamos implicitamente assumindo que as observações são funções de Koopman (eigenfunctions) ou podem ser bem aproximadas por combinações lineares destas funções.
+
+A matriz DMD $\tilde{A}$ representa uma aproximação finito-dimensional do operador de Koopman:
+
+\begin{equation}
+\tilde{A} \approx \mathcal{K}|_{\text{span}\{x_1, x_2, \ldots, x_m\}} \label{eq:dmd_koopman_approximation}
+\end{equation}
+
+Os modos dinâmicos $\phi_i$ aproximam as eigenfunctions de Koopman, enquanto os autovalores $\lambda_i$ aproximam os eigenvalues correspondentes do operador de Koopman.
+
+\subsection{Implicações Teóricas}
+
+Esta conexão com o operador de Koopman fornece o fundamento teórico rigoroso para DMD, explicando por que a metodologia é eficaz mesmo para sistemas não-lineares. A linearidade do operador de Koopman no espaço de funções permite que métodos de álgebra linear sejam aplicados de forma consistente, mesmo quando o sistema subjacente é não-linear.
+
+\section{Conclusões}
+
+Este trabalho apresentou a teoria computacional da Decomposição em Modos Dinâmicos através da perspectiva dos métodos de álgebra linear estudados na disciplina MAT-55. A análise demonstrou como DMD emerge naturalmente da aplicação sistemática de técnicas de SVD, métodos de quadrados mínimos, e técnicas de ortogonalização.
+
+As principais contribuições incluem:
+
+\begin{itemize}
+\item Formulação rigorosa do problema DMD em termos de álgebra linear computacional
+\item Apresentação detalhada dos aspectos algorítmicos e considerações de estabilidade numérica
+\item Estabelecimento da conexão fundamental com o operador de Koopman
+\end{itemize}
+
+A compreensão dos fundamentos de álgebra linear computacional fornecidos pela disciplina MAT-55 é essencial para a implementação eficiente e teoricamente fundamentada de DMD. Esta metodologia exemplifica como conceitos clássicos de álgebra linear se estendem naturalmente para problemas contemporâneos de análise de dados dinâmicos.
+
+A conexão com o operador de Koopman fornece o contexto teórico que justifica a aplicabilidade de DMD a sistemas não-lineares, demonstrando a elegância e generalidade dos métodos de álgebra linear quando aplicados de forma apropriada.
+
+\begin{thebibliography}{00}
+
+\bibitem{Kutz2016}
+Kutz, J. N., Brunton, S. L., Brunton, B. W. and Proctor, J. L. {\it Dynamic Mode Decomposition: Data-Driven Modeling of Complex Systems}. SIAM, Philadelphia, 2016.
+
+\bibitem{Schmid2010}
+Schmid, P. J. Dynamic mode decomposition of numerical and experimental data, {\it Journal of Fluid Mechanics}, 656:5--28, 2010. DOI: 10.1017/S0022112010001217.
+
+\bibitem{Tu2014}
+Tu, J. H., Rowley, C. W., Luchtenburg, D. M., Brunton, S. L. and Kutz, J. N. On dynamic mode decomposition: Theory and applications, {\it Journal of Computational Dynamics}, 1(2):391--421, 2014. DOI: 10.3934/jcd.2014.1.391.
+
+\bibitem{Williams2015}
+Williams, M. O., Kevrekidis, I. G. and Rowley, C. W. A data-driven approximation of the Koopman operator: Extending dynamic mode decomposition, {\it Journal of Nonlinear Science}, 25(6):1307--1346, 2015. DOI: 10.1007/s00332-015-9258-5.
+
+\end{thebibliography}
+
+\end{document}
+
+% Ideias para implementacao do filtro
+% Fazer um emsemble e evoluir a partir dele mesmo (artigo do Rowley)
